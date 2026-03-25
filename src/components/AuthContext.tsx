@@ -1,12 +1,11 @@
-// AuthContext.tsx
-import React, {createContext, useContext, useState, type ReactNode, useEffect} from 'react';
-import { type GoogleUser } from '../types/auth'
-import Cookies from 'js-cookie'
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { type GoogleUser } from '../types/auth';
+import { TokenStorage } from "../services/TokenStore" // Исправь опечатку в названии если надо
 
 interface AuthContextType {
     user: GoogleUser | null;
     token: string | null;
-    login: (credentialResponse: any) => void;
+    login: (tokenResponse: any) => void;
     logout: () => void;
     isAuthenticated: boolean;
     isLoading: boolean;
@@ -14,83 +13,71 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_METHOD: 'cookie' | 'localStorage' = 'cookie'; // или 'localStorage'
-const TOKEN_KEY = 'accessToken';
-
-const tokenStorage = {
-    set: (token: string) => {
-        if (STORAGE_METHOD === 'cookie') {
-            Cookies.set(TOKEN_KEY, token, { expires: 7, secure: true, sameSite: 'strict' });
-        } else {
-            localStorage.setItem(TOKEN_KEY, token);
-        }
-    },
-    get: () : string | undefined | null => {
-        return STORAGE_METHOD === 'cookie' ? Cookies.get(TOKEN_KEY) : localStorage.getItem(TOKEN_KEY);
-    },
-    remove: () => {
-        if (STORAGE_METHOD === 'cookie') {
-            Cookies.remove(TOKEN_KEY);
-        } else {
-            localStorage.removeItem(TOKEN_KEY);
-        }
-    }
-};
-
-const decodeJwt = (token: string) : GoogleUser | null => {
-    try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-
-        const userData = JSON.parse(jsonPayload);
-        return {
-            name: userData.name,
-            picture: userData.picture,
-            email: userData.email,
-            sub: userData.sub
-        };
-    } catch (e) {
-        console.error("Ошибка декодирования токена", e);
-    }
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<GoogleUser | null>(null);
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
-    useEffect(() => {
-        const savedToken = tokenStorage.get();
-        if (savedToken) {
-            const decodedUser = decodeJwt(savedToken);
-            setUser(decodedUser);
-            setToken(savedToken);
-        } else {
-            tokenStorage.remove();
+    // Функция для получения данных пользователя по Access Token
+    const fetchUserInfo = async (accessToken: string) => {
+        try {
+            const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                return {
+                    name: data.name,
+                    picture: data.picture,
+                    email: data.email,
+                    sub: data.sub
+                } as GoogleUser;
+            }
+        } catch (error) {
+            console.error("Ошибка при получении профиля Google:", error);
         }
-        setIsLoading(false);
+        return null;
+    };
+
+    useEffect(() => {
+        const initAuth = async () => {
+            const savedToken = TokenStorage.getToken();
+            if (savedToken) {
+                setToken(savedToken);
+                const userData = await fetchUserInfo(savedToken);
+                if (userData) {
+                    setUser(userData);
+                } else {
+                    // Если токен протух (UserInfo вернул ошибку)
+                    logout();
+                }
+            }
+            setIsLoading(false);
+        };
+        initAuth();
     }, []);
 
-    const login = (credentialResponse: any) => {
-        const { credential } = credentialResponse;
+    const login = async (tokenResponse: any) => {
+        const accessToken = tokenResponse.access_token;
 
-        if (!credential) return;
+        if (!accessToken) {
+            console.error("Access Token не найден в ответе");
+            return;
+        }
 
-        const decodedUser = decodeJwt(credential);
-        if (decodedUser) {
-            setUser(decodedUser);
-            setToken(credential);
-            tokenStorage.set(credential);
+        TokenStorage.setToken(accessToken);
+        setToken(accessToken);
+
+        const userData = await fetchUserInfo(accessToken);
+        if (userData) {
+            setUser(userData);
         }
     };
 
     const logout = () => {
         setUser(null);
         setToken(null);
-        localStorage.removeItem('accessToken');
+        TokenStorage.removeToken();
     };
 
     return (
