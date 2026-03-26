@@ -1,5 +1,5 @@
-import type {Course, CourseWork} from "../types/auth.ts";
-import {createContext, type ReactNode, useContext, useEffect, useState} from "react";
+import type {Course, CourseWork, Student, StudentSubmission} from "../types/auth.ts";
+import {createContext, type ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import {useAuth} from "./AuthContext.tsx";
 import {classroomService} from "../services/ClassroomService.ts";
 
@@ -7,12 +7,17 @@ import {classroomService} from "../services/ClassroomService.ts";
 interface ClassroomContextType {
     courses: Course[];
     activeCourseId: string | null ;
+    activeCourseWorkId: string | null;
     courseWorkMap: Record<string, CourseWork[]>;
+    submissionsMap: Record<string, StudentSubmission[]>;
+    studentsMap: Record<string, Student[]>;
 
     loadingCourse: boolean;
     loadingWork: boolean;
+    loadingSubmissions: boolean;
 
     selectCourse: (id: string) => void;
+    selectCourseWork: (id: string | null) => void;
     fetchCourseWorks: (courseId: string) => Promise<void>;
 }
 
@@ -24,9 +29,14 @@ const ClassroomProvider = ({ children }: { children: ReactNode }) => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
     const [courseWorkMap, setCourseWorkMap] = useState<Record<string, CourseWork[]>>({});
+    const [studentsMap, setStudentsMap] = useState<Record<string, Student[]>>({});
+
+    const [activeCourseWorkId, setActiveCourseWorkId] = useState<string | null>(null);
+    const [submissionsMap, setSubmissionsMap] = useState<Record<string, StudentSubmission[]>>({});
 
     const [loadingWork, setLoadingWork] = useState(false);
     const [loadingCourses, setLoadingCourses] = useState(false);
+    const [loadingSubmissions, setLoadingSubmissions] = useState(false);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -37,24 +47,53 @@ const ClassroomProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [isAuthenticated]);
 
-    const selectCourse = (id: string) => {
-        setActiveCourseId(id);
-        if (!courseWorkMap[id]) {
-            fetchCourseWork(id);
-        }
-    };
-
-    const fetchCourseWork = async (id: string) => {
+    const fetchCourseWork = useCallback(async (id: string) => {
+        if (courseWorkMap[id]) return;
         setLoadingWork(true);
         try {
-            const work = await classroomService.getCourseWorks(id);
-            setCourseWorkMap(prev => ({...prev, [id]: work}));
+            const work = await classroomService.getCourseWorks(id); // Убедитесь что метод в сервисе назван так же
+            setCourseWorkMap(prev => ({ ...prev, [id]: work }));
         } catch (error) {
-            console.error("Ошибка загрузки заданий:", error);
+            console.error(error);
         } finally {
             setLoadingWork(false);
         }
+    }, [courseWorkMap]);
+
+    const selectCourse = (id: string) => {
+        setActiveCourseId(id);
+        setActiveCourseWorkId(null);
+        if (id !== 'dashboard' && id !== 'profile') {
+            if (!courseWorkMap[id]) fetchCourseWork(id);
+            if (!studentsMap[id]) fetchCourseStudents(id);
+        }
     };
+
+    const selectCourseWork = async (courseWorkId: string | null) => {
+        setActiveCourseWorkId(courseWorkId);
+
+        if (courseWorkId && activeCourseId && !submissionsMap[courseWorkId]) {
+            setLoadingSubmissions(true);
+            try {
+                const subs = await classroomService.getSubmissions(activeCourseId, courseWorkId);
+                setSubmissionsMap(prev => ({ ...prev, [courseWorkId]: subs }));
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setLoadingSubmissions(false);
+            }
+        }
+    };
+
+    const fetchCourseStudents = useCallback(async (courseId: string) => {
+        if (studentsMap[courseId]) return; // Если уже загружали — пропускаем
+        try {
+            const students = await classroomService.getCourseStudents(courseId);
+            setStudentsMap(prev => ({ ...prev, [courseId]: students }));
+        } catch (error) {
+            console.error(error);
+        }
+    }, [studentsMap]);
 
     return (
         <ClassroomContext.Provider value={{
@@ -64,7 +103,13 @@ const ClassroomProvider = ({ children }: { children: ReactNode }) => {
             loadingWork,
             loadingCourses,
             selectCourse,
-            fetchCourseWork
+            fetchCourseWork,
+            selectCourseWork,
+            activeCourseWorkId,
+            submissionsMap,
+            loadingSubmissions,
+            fetchCourseStudents,
+            studentsMap
         }}>
             {children}
         </ClassroomContext.Provider>

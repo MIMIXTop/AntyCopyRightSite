@@ -1,4 +1,4 @@
-import type {Course, CourseWork} from "../types/auth.ts";
+import type {Course, CourseWork, Student, StudentSubmission} from "../types/auth.ts";
 import {BaseApiService} from "./api.ts";
 
 export class ClassroomService extends BaseApiService {
@@ -22,6 +22,28 @@ export class ClassroomService extends BaseApiService {
             return data.courseWork || [];
         } catch (error) {
             console.error('Failed to fetch courseWorks:', error);
+        }
+    }
+
+    async getSubmissions(courseId: string, courseWorkId: string): Promise<StudentSubmission[]> {
+        try {
+            const data = await this.request<{ studentSubmissions: StudentSubmission[] }>(
+                `/courses/${courseId}/courseWork/${courseWorkId}/studentSubmissions`
+            );
+            return data.studentSubmissions || [];
+        } catch (error) {
+            console.error('Ошибка загрузки работ студентов:', error);
+            return [];
+        }
+    }
+
+    async getCourseStudents(courseId: string): Promise<Student[]> {
+        try {
+            const data = await this.request<{ students: Student[] }>(`/courses/${courseId}/students`);
+            return data.students || [];
+        } catch (error) {
+            console.error('Ошибка загрузки студентов курса:', error);
+            return [];
         }
     }
 }

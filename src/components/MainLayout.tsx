@@ -15,10 +15,7 @@ export const MainLayout = () => {
                     collapsed={collapsed}
                     onToggle={() => setCollapsed(!collapsed)}
                 />
-                <AppContent>
-                    <h1>Основной контент страницы</h1>
-                    <p>Здесь может быть ваша форма, таблица или графики.</p>
-                </AppContent>
+                <AppContent/>
             </Layout>
         </Layout>
     );
