@@ -11,3 +11,10 @@ export interface Course {
     ownerId: string;
     courseState: string;
 }
+
+export interface CourseWork {
+    id: string;
+    title: string;
+    courseId: string;
+    description: string;
+}

@@ -1,75 +1,61 @@
-# React + TypeScript + Vite
+# AntyCopyRight
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Фронтенд веб-приложения для анализа файлов на нарушение авторских прав.
 
-Currently, two official plugins are available:
+## Технологии
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** — UI-фреймворк
+- **TypeScript** — типизация
+- **Vite** — сборка и Dev-сервер
+- **Ant Design** — UI-компоненты
+- **Material Tailwind** — дизайн-система
+- **Tailwind CSS** — стилизация
+- **Google OAuth** — авторизация
+- **Google Classroom API** — интеграция с Google Classroom
 
-## React Compiler
+## Структура проекта
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── components/        # React-компоненты
+│   ├── AppContent.tsx
+│   ├── AppHeader.tsx
+│   ├── AuthContext.tsx
+│   ├── MainLayout.tsx
+│   └── Sidebar.tsx
+├── services/          # API-сервисы
+│   ├── api.ts         # Базовый класс для запросов
+│   ├── ClassroomService.ts
+│   └── TokenStore.ts
+├── types/             # TypeScript-типы
+│   └── auth.ts
+├── App.tsx
+└── main.tsx
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Установка и запуск
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+# Установка зависимостей
+bun install
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Запуск dev-сервера
+bun run dev
+
+# Сборка для продакшена
+bun run build
+
+# Предпросмотр продакшена
+bun run preview
+
+# Линтинг
+bun run lint
 ```
+
+## Особенности
+
+- Авторизация через Google OAuth
+- Интеграция с Google Classroom API
+- Анализ файлов на нарушение авторских прав
+- Тёмная тема интерфейса
+- Адаптивный дизайн

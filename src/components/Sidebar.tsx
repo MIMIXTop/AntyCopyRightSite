@@ -1,6 +1,12 @@
-import {UploadOutlined, UserOutlined, VideoCameraOutlined } from '@ant-design/icons'
-import React from "react";
-import {Layout, Menu} from "antd";
+import {UploadOutlined, AppstoreOutlined, UserOutlined, VideoCameraOutlined, BookOutlined } from '@ant-design/icons'
+import React, {useEffect, useState} from "react";
+import {Layout, Menu, type MenuProps, Spin} from "antd";
+import type {Course} from '../types/auth';
+import { classroomService } from "../services/ClassroomService.ts";
+import {useAuth} from "./AuthContext.tsx";
+import {data} from "autoprefixer";
+import {Spinner} from "@material-tailwind/react";
+import {useClassroom} from "./ClassroomContext.tsx";
 
 const { Sider } = Layout;
 
@@ -10,22 +16,51 @@ interface SidebarProps {
 
 export const Sidebar : React.FC<SidebarProps> = ({ collapsed }) => {
 
-    const items = [
-        { key: '1', icon: <UserOutlined />, label: 'Профиль' },
-        { key: '2', icon: <VideoCameraOutlined />, label: 'Видео' },
-        { key: '3', icon: <UploadOutlined />, label: 'Загрузки' },
+    const {isAuthenticated} = useAuth();
+
+   const {courses, selectCourse , loadingCourse} = useClassroom();
+
+    const menuItems: MenuProps['items'] = [
+        {
+            key: 'dashboard',
+            icon: <AppstoreOutlined />,
+            label: 'Главная',
+        },
+        {
+            type: 'divider',
+        },
+        {
+            key: 'courses_group',
+            label: 'Мои курсы',
+            children: loadingCourse ? [{ key: 'loading', label: <Spin size="small" /> }]
+                : courses?.length > 0 ? courses?.map(course => ({
+                  key: course.id,
+                  icon: <BookOutlined />,
+                  label: course.name,
+                  title: course.name,
+                }))
+                    : [{ key: 'no_courses', label: 'Нет курсов', disabled: true }]
+        },
+        {
+            type: 'divider',
+        },
+        {
+            key: 'profile',
+            icon: <UserOutlined />,
+            label: 'Настройки',
+        },
     ];
 
     return (
-        <Sider trigger={null} collapsible collapsed={collapsed}>
+        <Sider trigger={null} collapsible collapsed={collapsed} width={250} style={{overflowX: 'auto', height: '100vh'}}>
             <div style={{
                 height: 32, margin: 16, backgroundColor: 'rgba(255,255,255,.2)',
                 borderRadius: 6, display: 'flex', justifyContent: 'center',
                 alignItems: 'center', color: '#fff',
             }}>
-                {collapsed ? 'A' : 'ANT DESIGN'}
+                {collapsed ? 'Anty' : 'AntyCopyRight'}
             </div>
-            <Menu theme='dark' mode='inline' defaultSelectedKeys={['1']} items={items} />
+            <Menu theme='dark' mode='inline' defaultSelectedKeys={['dashboard']} items={menuItems} onClick={(info) => selectCourse(info.key) } />
         </Sider>
     );
 };

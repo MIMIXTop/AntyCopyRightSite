@@ -1,10 +1,5 @@
-import type {Course} from "../types/auth.ts";
+import type {Course, CourseWork} from "../types/auth.ts";
 import {BaseApiService} from "./api.ts";
-
-interface ClassroomResponse {
-    courses: Course[];
-    nextPageToken?: string;
-}
 
 export class ClassroomService extends BaseApiService {
     constructor() {
@@ -13,7 +8,7 @@ export class ClassroomService extends BaseApiService {
 
     async getCourses(): Promise<Course[]> {
         try {
-            const data = await this.request<ClassroomResponse>('/courses?courseState=ACTIVE');
+            const data = await this.request<{courses: Course[]}>('/courses?courseStates=ACTIVE');
             return data.courses || [];
         } catch (error) {
             console.error('Failed to fetch courses:', error);
@@ -21,8 +16,13 @@ export class ClassroomService extends BaseApiService {
         }
     }
 
-    async getCourse(id: string): Promise<Course> {
-        return this.request<Course>(`/courses/${id}`);
+    async getCourseWorks(courseId: string): Promise<CourseWork[]> {
+        try {
+            const data = await this.request<{ courseWork: CourseWork[] }>('/courses/' + courseId + '/courseWork?courseWorkStates=PUBLISHED');
+            return data.courseWork || [];
+        } catch (error) {
+            console.error('Failed to fetch courseWorks:', error);
+        }
     }
 }
 
