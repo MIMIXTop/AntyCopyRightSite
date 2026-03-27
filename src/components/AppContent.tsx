@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
-import { Layout, Empty, Spin, Typography, Avatar, Input, Row, Col, Card, Table, Tag, Button, Statistic } from 'antd';
-import { FileTextOutlined, SearchOutlined, BookOutlined, ArrowLeftOutlined, CheckCircleOutlined, UserOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import {
+    Layout, Empty, Spin, Typography, Avatar, Input, Row, Col,
+    Card, Table, Tag, Button, Statistic
+} from 'antd';
+import {
+    FileTextOutlined, SearchOutlined, BookOutlined, ArrowLeftOutlined,
+    CheckCircleOutlined, UserOutlined, PaperClipOutlined, CloseOutlined, ExportOutlined
+} from '@ant-design/icons';
 import { useClassroom } from "./ClassroomContext.tsx";
 
 const { Content } = Layout;
@@ -13,6 +19,26 @@ export const AppContent: React.FC = () => {
     } = useClassroom();
 
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Стейт для полноэкранного окна
+    const [previewFile, setPreviewFile] = useState<{ title: string, alternateLink: string, thumbnailUrl?: string } | null>(null);
+
+    // Блокируем прокрутку страницы на заднем фоне, когда открыт предпросмотр
+    useEffect(() => {
+        if (previewFile) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'auto';
+        }
+        return () => { document.body.style.overflow = 'auto'; };
+    }, [previewFile]);
+
+    const getEmbedUrl = (alternateLink: string) => {
+        if (alternateLink.includes('/view')) {
+            return alternateLink.replace(/\/view.*/, '/preview');
+        }
+        return alternateLink;
+    };
 
     // --- 1. РЕЖИМ ГЛАВНОЙ (DASHBOARD) ---
     if (activeCourseId === 'dashboard' || !activeCourseId) {
@@ -80,32 +106,22 @@ export const AppContent: React.FC = () => {
 
         const columns = [
             {
-                title: 'ID Студента',
+                title: 'Студент',
                 dataIndex: 'userId',
                 key: 'userId',
                 render: (userId: string) => {
                     const student = courseStudents.find(s => s.userId === userId);
+                    const name = student?.profile?.name?.fullName || `Студент ${userId}`;
 
-                    // Если нашли, берем его имя. Если нет — просто выводим ID
-                    const name = student?.profile?.name?.fullName || `Пользователь ${userId}`;
-
-                    // БЕЗОПАСНАЯ ОБРАБОТКА АВАТАРА
                     let avatarSrc: string | undefined = undefined;
                     const rawPhotoUrl = student?.profile?.photoUrl;
-
                     if (rawPhotoUrl) {
-                        // Если ссылка начинается с '//', добавляем 'https:'
                         avatarSrc = rawPhotoUrl.startsWith('//') ? `https:${rawPhotoUrl}` : rawPhotoUrl;
                     }
 
                     return (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            {/* Если avatarSrc === undefined, Ant Design просто покажет иконку UserOutlined */}
-                            <Avatar
-                                src={avatarSrc}
-                                icon={<UserOutlined />}
-                                style={{ backgroundColor: '#1677ff' }} // Цвет фона для дефолтной иконки
-                            />
+                            <Avatar src={avatarSrc} icon={<UserOutlined />} style={{ backgroundColor: '#1677ff' }} />
                             <span style={{ fontWeight: 500 }}>{name}</span>
                         </div>
                     );
@@ -126,15 +142,57 @@ export const AppContent: React.FC = () => {
                 dataIndex: 'updateTime',
                 key: 'updateTime',
                 render: (time: string) => time ? new Date(time).toLocaleString() : 'Нет данных'
-            },
-            {
-                title: 'Действие',
-                key: 'action',
-                render: (_: any, record: any) => (
-                    <Button type="link" href={record.alternateLink} target="_blank">Проверить работу</Button>
-                )
             }
         ];
+
+        const expandedRowRender = (record: any) => {
+            const attachments = record.assignmentSubmission?.attachments || [];
+
+            if (attachments.length === 0) {
+                return <Text type="secondary" style={{ marginLeft: 45 }}>Нет прикрепленных файлов</Text>;
+            }
+
+            return (
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', paddingLeft: '45px' }}>
+                    {attachments.map((att: any, index: number) => {
+                        const file = att.driveFile;
+                        if (!file) return null;
+
+                        return (
+                            <Card
+                                key={index}
+                                hoverable
+                                size="small"
+                                style={{ width: 220, borderRadius: 8, overflow: 'hidden' }}
+                                styles={{ body: { padding: 12 } }}
+                                onClick={() => setPreviewFile({
+                                    title: file.title,
+                                    alternateLink: file.alternateLink,
+                                    thumbnailUrl: getEmbedUrl(file.alternateLink),
+                                })}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <Avatar
+                                        shape="square"
+                                        size={40}
+                                        src={file.thumbnailUrl}
+                                        icon={<PaperClipOutlined />}
+                                    />
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <Text ellipsis style={{ display: 'block', fontWeight: 500, fontSize: '13px' }}>
+                                            {file.title}
+                                        </Text>
+                                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                                            Google Drive
+                                        </Text>
+                                    </div>
+                                </div>
+                            </Card>
+                        );
+                    })}
+                </div>
+            );
+        };
 
         return (
             <Content style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
@@ -156,7 +214,6 @@ export const AppContent: React.FC = () => {
                                 title="Сдали работу"
                                 value={turnedInCount}
                                 suffix={`/ ${totalStudents}`}
-                                // ИСПРАВЛЕНО: Используем styles.content вместо valueStyle
                                 styles={{ content: { color: '#3f8600' } }}
                                 prefix={<CheckCircleOutlined />}
                             />
@@ -168,8 +225,73 @@ export const AppContent: React.FC = () => {
                         columns={columns}
                         loading={loadingSubmissions}
                         pagination={{ pageSize: 10 }}
+                        expandable={{
+                            expandedRowRender,
+                            defaultExpandedRowKeys: submissions.filter(s => s.state === 'TURNED_IN').map(s => s.id)
+                        }}
                     />
                 </Card>
+
+                {/* --- НАСТОЯЩИЙ ПОЛНОЭКРАННЫЙ СЛОЙ (ВМЕСТО MODAL) --- */}
+                {previewFile && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        backgroundColor: '#323639', // Цвет оригинального Google Viewer
+                        zIndex: 99999, // 100% поверх сайдбара и шапки
+                        display: 'flex',
+                        flexDirection: 'column'
+                    }}>
+                        {/* ТЕМНАЯ ШАПКА КАК В GOOGLE DRIVE */}
+                        <div style={{
+                            height: '60px',
+                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '0 20px',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                <FileTextOutlined style={{ fontSize: '24px', color: '#8ab4f8' }} />
+                                <Typography.Text style={{ color: 'white', fontSize: '16px', fontWeight: 500 }}>
+                                    {previewFile.title}
+                                </Typography.Text>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                                <Button
+                                    type="text"
+                                    icon={<ExportOutlined />}
+                                    href={previewFile.alternateLink}
+                                    target="_blank"
+                                    style={{ color: 'white', backgroundColor: 'rgba(255,255,255,0.1)' }}
+                                >
+                                    Открыть в Google Drive
+                                </Button>
+                                {/* КНОПКА ЗАКРЫТИЯ */}
+                                <Button
+                                    type="text"
+                                    icon={<CloseOutlined style={{ fontSize: '20px' }} />}
+                                    onClick={() => setPreviewFile(null)}
+                                    style={{ color: 'white' }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* САМ ДОКУМЕНТ (IFRAME) */}
+                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                            <iframe
+                                src={previewFile.thumbnailUrl}
+                                style={{ width: '100%', height: '100%', border: 'none' }}
+                                allowFullScreen
+                                title="Предпросмотр документа"
+                            />
+                        </div>
+                    </div>
+                )}
             </Content>
         );
     }
@@ -191,7 +313,6 @@ export const AppContent: React.FC = () => {
                     <Text style={{ color: 'white', fontSize: '18px' }}>{activeCourse?.section}</Text>
                 </div>
 
-                {/* Поиск заданий */}
                 <div style={{ marginBottom: 24 }}>
                     <Input
                         placeholder="Поиск заданий..."
@@ -206,7 +327,6 @@ export const AppContent: React.FC = () => {
                 {loadingWork ? (
                     <div style={{ textAlign: 'center', marginTop: 40 }}><Spin /></div>
                 ) : (
-                    // ИСПРАВЛЕНО: Убрали <List> и используем обычный map внутри flex-контейнера
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {filteredAssignments.map((item) => (
                             <div
