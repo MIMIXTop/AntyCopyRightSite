@@ -2,9 +2,8 @@ import "@material-tailwind/react";
 
 declare module "@material-tailwind/react" {
   export interface ButtonProps {
-    placeholder?: any;
-    onPointerEnterCapture?: any;
-    onPointerLeaveCapture?: any;
+    placeholder?: unknown;
+    onPointerEnterCapture?: unknown;
+    onPointerLeaveCapture?: unknown;
   }
-  // Добавьте другие компоненты, если будут ругаться на placeholder
 }

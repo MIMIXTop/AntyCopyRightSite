@@ -1,26 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout, Typography, Avatar, Input, Card, Table, Tag, Button, message, Tabs, Checkbox, Space, Spin } from 'antd';
 import { FileTextOutlined, SearchOutlined, ArrowLeftOutlined, UserOutlined, PaperClipOutlined, ScanOutlined } from '@ant-design/icons';
 import { useClassroom } from "./ClassroomContext.tsx";
 import { useAuth } from "./AuthContext.tsx";
 
-// Импорт новых компонентов
 import { FilePreviewOverlay } from './FilePreviewOverlay';
 import { SimilarityMatrix } from './SimilarityMatrix';
 import { DashboardView } from './DashboardView';
+import type { DriveFile, FileMeta, Submission, Attachment } from '../types/auth';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
+
+interface PayloadFile {
+    file: {
+        file_url: string;
+        file_id: string;
+    };
+}
 
 export const AppContent: React.FC = () => {
     const { courses, activeCourseId, activeCourseWorkId, courseWorkMap, submissionsMap, loadingWork, loadingCourses, loadingSubmissions, selectCourse, selectCourseWork, studentsMap } = useClassroom();
     const { token } = useAuth();
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [previewFile, setPreviewFile] = useState<any | null>(null);
+    const [previewFile, setPreviewFile] = useState<DriveFile | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [similarityData, setSimilarityData] = useState<any[] | null>(null);
-    const [fileMetaMap, setFileMetaMap] = useState<Record<string, any>>({});
+    const [similarityData, setSimilarityData] = useState<Array<{ id: string; similarity: Array<{ id: string; value: number }> }> | null>(null);
+    const [fileMetaMap, setFileMetaMap] = useState<Record<string, FileMeta>>({});
     const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
 
     useEffect(() => {
@@ -33,18 +40,17 @@ export const AppContent: React.FC = () => {
 
     const handleAnalyze = async () => {
         setIsAnalyzing(true);
-        const payloadFiles: any[] = [];
-        const meta: Record<string, any> = {};
-        const assignments = courseWorkMap[activeCourseId!] || [];
+        const payloadFiles: PayloadFile[] = [];
+        const meta: Record<string, FileMeta> = {};
         const submissions = submissionsMap[activeCourseWorkId!] || [];
         const courseStudents = studentsMap[activeCourseId!] || [];
 
         submissions.forEach(sub => {
             const student = courseStudents.find(s => s.userId === sub.userId);
-            sub.assignmentSubmission?.attachments?.forEach(att => {
+            sub.assignmentSubmission?.attachments?.forEach((att: Attachment) => {
                 if (att.driveFile && selectedFileIds.includes(att.driveFile.id)) {
                     payloadFiles.push({ file: { file_url: att.driveFile.alternateLink.split('/view')[0], file_id: att.driveFile.id } });
-                    meta[att.driveFile.id] = { studentName: student?.profile?.name?.fullName, fileName: att.driveFile.title };
+                    meta[att.driveFile.id] = { studentName: student?.profile?.name?.fullName ?? '', fileName: att.driveFile.title };
                 }
             });
         });
@@ -59,10 +65,13 @@ export const AppContent: React.FC = () => {
             const data = await res.json();
             setSimilarityData(data);
             message.success('Анализ завершен');
-        } catch (e) { message.error('Ошибка анализа'); } finally { setIsAnalyzing(false); }
+        } catch {
+            message.error('Ошибка анализа');
+        } finally {
+            setIsAnalyzing(false);
+        }
     };
 
-    // Рендер Dashboard
     if (activeCourseId === 'dashboard' || !activeCourseId) {
         return <DashboardView
             courses={courses.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))}
@@ -75,7 +84,6 @@ export const AppContent: React.FC = () => {
 
     const activeCourse = courses.find(c => c.id === activeCourseId);
 
-    // Рендер страницы Задания
     if (activeCourseWorkId) {
         const submissions = submissionsMap[activeCourseWorkId] || [];
         const currentWork = (courseWorkMap[activeCourseId] || []).find(w => w.id === activeCourseWorkId);
@@ -101,7 +109,7 @@ export const AppContent: React.FC = () => {
                 const docx = sub.assignmentSubmission?.attachments?.filter(a => a.driveFile?.title.toLowerCase().endsWith('.docx')) || [];
                 return docx.length > 0 && docx.every(f => selectedFileIds.includes(f.driveFile!.id));
             }).map(s => s.id),
-            onChange: (keys: any) => {
+            onChange: (keys: React.Key[]) => {
                 let newIds = [...selectedFileIds];
                 submissions.forEach(sub => {
                     const docx = sub.assignmentSubmission?.attachments?.filter(a => a.driveFile?.title.toLowerCase().endsWith('.docx')).map(a => a.driveFile!.id) || [];
@@ -112,16 +120,16 @@ export const AppContent: React.FC = () => {
             }
         };
 
-        const expandedRowRender = (record: any) => (
+        const expandedRowRender = (record: Submission) => (
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', paddingLeft: '50px' }}>
-                {record.assignmentSubmission?.attachments?.filter((a: any) => a.driveFile?.title.toLowerCase().endsWith('.docx')).map((att: any) => (
-                    <Space key={att.driveFile.id}>
-                        <Checkbox checked={selectedFileIds.includes(att.driveFile.id)} onChange={() => setSelectedFileIds(prev => prev.includes(att.driveFile.id) ? prev.filter(id => id !== att.driveFile.id) : [...prev, att.driveFile.id])} />
-                        <Card hoverable size="small" style={{ width: 200, border: selectedFileIds.includes(att.driveFile.id) ? '1px solid #1677ff' : '1px solid #f0f0f0' }} styles={{ body: { padding: 8 } }}>
+                {record.assignmentSubmission?.attachments?.filter((a) => a.driveFile?.title.toLowerCase().endsWith('.docx')).map((att) => (
+                    <Space key={att.driveFile!.id}>
+                        <Checkbox checked={selectedFileIds.includes(att.driveFile!.id)} onChange={() => setSelectedFileIds(prev => prev.includes(att.driveFile!.id) ? prev.filter(id => id !== att.driveFile!.id) : [...prev, att.driveFile!.id])} />
+                        <Card hoverable size="small" style={{ width: 200, border: selectedFileIds.includes(att.driveFile!.id) ? '1px solid #1677ff' : '1px solid #f0f0f0' }} styles={{ body: { padding: 8 } }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Avatar shape="square" size={32} src={att.driveFile.thumbnailUrl} icon={<PaperClipOutlined />} />
-                                <Text ellipsis style={{ flex: 1, fontSize: '12px' }}>{att.driveFile.title}</Text>
-                                <Button type="text" size="small" icon={<SearchOutlined />} onClick={() => setPreviewFile({ ...att.driveFile, thumbnailUrl: getEmbedUrl(att.driveFile.alternateLink) })} />
+                                <Avatar shape="square" size={32} src={att.driveFile!.thumbnailUrl} icon={<PaperClipOutlined />} />
+                                <Text ellipsis style={{ flex: 1, fontSize: '12px' }}>{att.driveFile!.title}</Text>
+                                <Button type="text" size="small" icon={<SearchOutlined />} onClick={() => setPreviewFile({ ...att.driveFile!, thumbnailUrl: getEmbedUrl(att.driveFile!.alternateLink) })} />
                             </div>
                         </Card>
                     </Space>
@@ -147,7 +155,6 @@ export const AppContent: React.FC = () => {
         );
     }
 
-    // Рендер ленты заданий курса
     const assignments = courseWorkMap[activeCourseId] || [];
     return (
         <Content style={{ margin: '24px 16px' }}>

@@ -1,15 +1,27 @@
-import React from 'react';
 import { Table, Tag, Empty } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import type { FileMeta } from '../types/auth';
+
+interface SimilarityDataItem {
+    id: string;
+    similarity: Array<{ id: string; value: number }>;
+}
+
+interface DataSourceRow {
+    key: string;
+    rowHeader: string;
+    [columnId: string]: number | string;
+}
 
 interface Props {
-    data: any[] | null;
-    metaMap: Record<string, { studentName: string, fileName: string }>;
+    data: SimilarityDataItem[] | null;
+    metaMap: Record<string, FileMeta>;
 }
 
 export const SimilarityMatrix: React.FC<Props> = ({ data, metaMap }) => {
     if (!data) return <Empty description="Выберите файлы и запустите анализ" />;
 
-    const columns: any[] = [{ title: 'Файл / Студент', dataIndex: 'rowHeader', key: 'rowHeader', fixed: 'left', width: 220 }];
+    const columns: ColumnsType<DataSourceRow> = [{ title: 'Файл / Студент', dataIndex: 'rowHeader', key: 'rowHeader', fixed: 'left', width: 220 }];
 
     data.forEach(item => {
         const meta = metaMap[item.id];
@@ -27,10 +39,10 @@ export const SimilarityMatrix: React.FC<Props> = ({ data, metaMap }) => {
         });
     });
 
-    const dataSource = data.map(item => ({
+    const dataSource: DataSourceRow[] = data.map(item => ({
         key: item.id,
         rowHeader: `${metaMap[item.id]?.studentName}\n(${metaMap[item.id]?.fileName})`,
-        ...Object.fromEntries(item.similarity.map((s: any) => [s.id, s.value]))
+        ...Object.fromEntries(item.similarity.map((s) => [s.id, s.value]))
     }));
 
     return <Table dataSource={dataSource} columns={columns} scroll={{ x: 'max-content' }} bordered pagination={false} />;

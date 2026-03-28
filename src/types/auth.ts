@@ -40,6 +40,7 @@ export interface StudentSubmission {
     updateTime: string;
     state: string;
     alternateLink: string;
+    assignmentSubmission?: AssignmentSubmission;
 }
 
 export interface UserProfile {
@@ -53,4 +54,45 @@ export interface Student {
     courseId: string;
     userId: string;
     profile: UserProfile;
+}
+
+export interface DriveFile {
+    id: string;
+    title: string;
+    alternateLink: string;
+    thumbnailUrl?: string;
+}
+
+export interface Attachment {
+    driveFile?: DriveFile;
+}
+
+export interface AssignmentSubmission {
+    attachments?: Attachment[];
+}
+
+export interface Submission {
+    id: string;
+    courseId: string;
+    courseWorkId: string;
+    userId: string;
+    creationTime: string;
+    updateTime: string;
+    state: string;
+    alternateLink: string;
+    assignmentSubmission?: AssignmentSubmission;
+}
+
+export interface FileMeta {
+    studentName: string;
+    fileName: string;
+}
+
+export interface SimilarityItem {
+    id: string;
+    similarity: Array<{ id: string; value: number }>;
+}
+
+export interface GoogleTokenResponse {
+    access_token: string;
 }

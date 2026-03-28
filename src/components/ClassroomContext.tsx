@@ -12,13 +12,15 @@ interface ClassroomContextType {
     submissionsMap: Record<string, StudentSubmission[]>;
     studentsMap: Record<string, Student[]>;
 
-    loadingCourse: boolean;
+    loadingCourses: boolean;
     loadingWork: boolean;
     loadingSubmissions: boolean;
 
     selectCourse: (id: string) => void;
     selectCourseWork: (id: string | null) => void;
+    fetchCourseWork: (courseId: string) => Promise<void>;
     fetchCourseWorks: (courseId: string) => Promise<void>;
+    fetchCourseStudents: (courseId: string) => Promise<void>;
 }
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
@@ -51,7 +53,7 @@ const ClassroomProvider = ({ children }: { children: ReactNode }) => {
         if (courseWorkMap[id]) return;
         setLoadingWork(true);
         try {
-            const work = await classroomService.getCourseWorks(id); // Убедитесь что метод в сервисе назван так же
+            const work = await classroomService.getCourseWorks(id);
             setCourseWorkMap(prev => ({ ...prev, [id]: work }));
         } catch (error) {
             console.error(error);
@@ -59,6 +61,8 @@ const ClassroomProvider = ({ children }: { children: ReactNode }) => {
             setLoadingWork(false);
         }
     }, [courseWorkMap]);
+
+    const fetchCourseWorks = fetchCourseWork;
 
     const selectCourse = (id: string) => {
         setActiveCourseId(id);
@@ -104,6 +108,7 @@ const ClassroomProvider = ({ children }: { children: ReactNode }) => {
             loadingCourses,
             selectCourse,
             fetchCourseWork,
+            fetchCourseWorks,
             selectCourseWork,
             activeCourseWorkId,
             submissionsMap,
@@ -117,6 +122,7 @@ const ClassroomProvider = ({ children }: { children: ReactNode }) => {
 };
 export default ClassroomProvider
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useClassroom = () => {
     const context = useContext(ClassroomContext);
     if (!context) throw new Error("useClassroo must be used within ClassroomProvider");

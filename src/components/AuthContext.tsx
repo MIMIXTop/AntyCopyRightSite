@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { type GoogleUser } from '../types/auth';
-import { TokenStorage } from "../services/TokenStore" // Исправь опечатку в названии если надо
+import { createContext, useContext, useState, type ReactNode, useEffect, useCallback } from 'react';
+import { type GoogleUser, type GoogleTokenResponse } from '../types/auth';
+import { TokenStorage } from "../services/TokenStore";
 
 interface AuthContextType {
     user: GoogleUser | null;
     token: string | null;
-    login: (tokenResponse: any) => void;
+    login: (tokenResponse: GoogleTokenResponse) => void;
     logout: () => void;
     isAuthenticated: boolean;
     isLoading: boolean;
@@ -18,8 +18,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
-    // Функция для получения данных пользователя по Access Token
-    const fetchUserInfo = async (accessToken: string) => {
+    const logout = useCallback(() => {
+        setUser(null);
+        setToken(null);
+        TokenStorage.removeToken();
+    }, []);
+
+    const fetchUserInfo = useCallback(async (accessToken: string): Promise<GoogleUser | null> => {
         try {
             const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                 headers: { Authorization: `Bearer ${accessToken}` }
@@ -31,13 +36,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     picture: data.picture,
                     email: data.email,
                     sub: data.sub
-                } as GoogleUser;
+                };
             }
         } catch (error) {
             console.error("Ошибка при получении профиля Google:", error);
         }
         return null;
-    };
+    }, []);
 
     useEffect(() => {
         const initAuth = async () => {
@@ -48,16 +53,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 if (userData) {
                     setUser(userData);
                 } else {
-                    // Если токен протух (UserInfo вернул ошибку)
                     logout();
                 }
             }
             setIsLoading(false);
         };
         initAuth();
-    }, []);
+    }, [fetchUserInfo, logout]);
 
-    const login = async (tokenResponse: any) => {
+    const login = async (tokenResponse: GoogleTokenResponse) => {
         const accessToken = tokenResponse.access_token;
 
         if (!accessToken) {
@@ -74,12 +78,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const logout = () => {
-        setUser(null);
-        setToken(null);
-        TokenStorage.removeToken();
-    };
-
     return (
         <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!user, isLoading }}>
             {!isLoading && children}
@@ -87,6 +85,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (context === undefined) {
