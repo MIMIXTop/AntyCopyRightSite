@@ -12,7 +12,6 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
     const { courses, selectCourse, loadingCourses, activeCourseId } = useClassroom();
 
-    // Используем useMemo, чтобы пункты меню не пересчитывались при каждом мигании курсора
     const menuItems: MenuProps['items'] = useMemo(() => [
         {
             key: 'dashboard',
@@ -52,18 +51,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
             trigger={null}
             collapsible
             collapsed={collapsed}
+            theme="light"
             width={250}
-            style={{ overflow: 'auto', height: '100vh', position: 'sticky', top: 0, left: 0 }}
+            style={{ overflow: 'auto', height: '100vh', position: 'sticky', top: 0, left: 0, background: '#F7F2FA' }}
         >
             <div style={{
                 height: 32, margin: 16, backgroundColor: 'rgba(255,255,255,.2)',
                 borderRadius: 6, display: 'flex', justifyContent: 'center',
-                alignItems: 'center', color: '#fff', fontWeight: 'bold'
+                alignItems: 'center', color: 'black', fontWeight: 'bold'
             }}>
                 {collapsed ? 'A' : 'AntyCopyRight'}
             </div>
             <Menu
-                theme='dark'
+                theme='light'
                 mode='inline'
                 selectedKeys={[activeCourseId || 'dashboard']}
                 items={menuItems}

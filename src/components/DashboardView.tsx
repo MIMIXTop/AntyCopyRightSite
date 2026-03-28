@@ -23,8 +23,26 @@ export const DashboardView: React.FC<Props> = ({ courses, loading, search, onSea
             <Row gutter={[16, 16]}>
                 {courses.map(course => (
                     <Col xs={24} sm={12} md={8} lg={6} key={course.id}>
-                        <Card hoverable onClick={() => onSelect(course.id)} cover={<div style={{ height: 100, background: '#1677ff', backgroundImage: 'url(https://www.gstatic.com/classroom/themes/img_graduation.jpg)', backgroundSize: 'cover' }} />}>
-                            <Card.Meta avatar={<Avatar icon={<BookOutlined />} />} title={course.name} description={course.section || 'Основной раздел'} />
+                        <Card
+                            hoverable
+                            bordered={false} // НЕТ ГРАНИЦ
+                            style={{
+                                background: '#F3EDF7', // Surface Container
+                                transition: '0.3s'
+                            }}
+                            cover={
+                                <div style={{
+                                    height: 120,
+                                    background: '#D0BCFF', // Пастельный фиолетовый
+                                    borderRadius: '16px 16px 0 0'
+                                }} />
+                            }
+                            onClick={() => onSelect(course.id)}
+                        >
+                            <Card.Meta
+                                title={<span style={{ color: '#1D1B20' }}>{course.name}</span>}
+                                description={course.section}
+                            />
                         </Card>
                     </Col>
                 ))}
