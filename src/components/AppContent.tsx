@@ -100,7 +100,7 @@ export const AppContent: React.FC = () => {
                     return <Space><Avatar src={avatar} icon={<UserOutlined />} /><b>{name}</b></Space>;
                 }
             },
-            { title: 'Статус', dataIndex: 'state', render: (s: string) => <Tag color={s === 'TURNED_IN' ? 'green' : 'default'}>{s}</Tag> },
+            { title: 'Статус', dataIndex: 'state', render: (s: string) => <Tag color={s === 'TURNED_IN' ? 'green' : 'default'}>{s === 'TURNED_IN' ? 'Сдано' : s === 'RETURNED' ? 'Оценено' : 'Назначено'}</Tag> },
             { title: 'Дата', dataIndex: 'updateTime', render: (t: string) => new Date(t).toLocaleString() }
         ];
 

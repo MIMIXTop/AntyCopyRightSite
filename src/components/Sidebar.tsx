@@ -10,7 +10,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
-    const { courses, selectCourse, loadingCourses } = useClassroom();
+    const { courses, selectCourse, loadingCourses, activeCourseId } = useClassroom();
 
     // Используем useMemo, чтобы пункты меню не пересчитывались при каждом мигании курсора
     const menuItems: MenuProps['items'] = useMemo(() => [
@@ -65,7 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
             <Menu
                 theme='dark'
                 mode='inline'
-                defaultSelectedKeys={['dashboard']}
+                selectedKeys={[activeCourseId || 'dashboard']}
                 items={menuItems}
                 onClick={(info) => selectCourse(info.key)}
             />
