@@ -31,9 +31,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ collapsed, onToggle }) => 
         onError: (error) => {
             console.error('Ошибка входа через Google:', error);
         },
-        // Добавляем необходимые права для работы с Classroom
-        scope: 'https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.rosters.readonly https://www.googleapis.com/auth/classroom.profile.emails',
-    });
+        scope: 'https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.rosters.readonly https://www.googleapis.com/auth/classroom.profile.emails https://www.googleapis.com/auth/drive.readonly',    });
 
     const userMenuItems: MenuProps['items'] = [
         {
