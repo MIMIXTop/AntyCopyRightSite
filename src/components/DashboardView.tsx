@@ -1,6 +1,6 @@
 import React from 'react';
-import { Row, Col, Card, Avatar, Typography, Input, Spin } from 'antd';
-import { SearchOutlined, BookOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Typography, Input, Spin } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
 import type {Course} from '../types/auth';
 
 const { Title } = Typography;
@@ -25,7 +25,7 @@ export const DashboardView: React.FC<Props> = ({ courses, loading, search, onSea
                     <Col xs={24} sm={12} md={8} lg={6} key={course.id}>
                         <Card
                             hoverable
-                            bordered={false} // НЕТ ГРАНИЦ
+                            variant="borderless"
                             style={{
                                 background: '#F3EDF7', // Surface Container
                                 transition: '0.3s'
