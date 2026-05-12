@@ -4,11 +4,11 @@ import {
     MenuFoldOutlined,
     MenuUnfoldOutlined,
     UserOutlined,
-    GoogleOutlined // Добавим иконку Google
+    GoogleOutlined
 } from '@ant-design/icons';
 import React from "react";
 import { useAuth } from "./AuthContext.tsx";
-import { useGoogleLogin } from "@react-oauth/google"; // Используем только хук
+import { env } from "../config/env.ts";
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -20,18 +20,11 @@ interface AppHeaderProps {
 
 export const AppHeader: React.FC<AppHeaderProps> = ({ collapsed, onToggle }) => {
     const { token: { colorBgContainer } } = theme.useToken();
-    const { user, login, logout, isAuthenticated } = useAuth();
+    const { user, logout, isAuthenticated } = useAuth();
 
-    // Настраиваем логику входа для получения Access Token (для Classroom API)
-    const handleLogin = useGoogleLogin({
-        onSuccess: (tokenResponse) => {
-            console.log('Login Success:', tokenResponse);
-            login(tokenResponse);
-        },
-        onError: (error) => {
-            console.error('Ошибка входа через Google:', error);
-        },
-        scope: 'https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.rosters.readonly https://www.googleapis.com/auth/classroom.profile.emails https://www.googleapis.com/auth/drive.readonly',    });
+    const handleLogin = () => {
+        window.location.href = `${env.apiBaseUrl}/api/auth/google/start`;
+    };
 
     const userMenuItems: MenuProps['items'] = [
         {
@@ -50,7 +43,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ collapsed, onToggle }) => 
             icon: <LogoutOutlined />,
             danger: true,
             label: 'Выйти',
-            onClick: logout,
+            onClick: () => void logout(),
         },
     ];
 
@@ -88,7 +81,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ collapsed, onToggle }) => 
                     <Button
                         type="default"
                         icon={<GoogleOutlined />}
-                        onClick={() => handleLogin()}
+                        onClick={handleLogin}
                         size="large"
                         style={{
                             display: 'flex',

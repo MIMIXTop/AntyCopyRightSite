@@ -11,10 +11,8 @@
   },
   "dependencies": {
     "@material-tailwind/react": "^2.1.10",
-    "@react-oauth/google": "^0.13.4",
     "antd": "^6.3.3",
     "axios": "^1.13.6",
-    "js-cookie": "^3.0.5",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
@@ -23,9 +21,7 @@
     "@eslint/js": "^9.39.4",
     "@rolldown/plugin-babel": "^0.2.1",
     "@types/babel__core": "^7.20.5",
-    "@types/google.accounts": "^0.0.18",
-    "@types/js-cookie": "^3.0.6",
-    "@types/node": "^24.12.0",
+    "@types/node": "^25.6.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",

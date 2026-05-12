@@ -26,7 +26,7 @@ interface ClassroomContextType {
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
 
 const ClassroomProvider = ({ children }: { children: ReactNode }) => {
-    const {isAuthenticated} = useAuth();
+    const {isAuthenticated, refreshUser} = useAuth();
 
     const [courses, setCourses] = useState<Course[]>([]);
     const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
@@ -40,14 +40,35 @@ const ClassroomProvider = ({ children }: { children: ReactNode }) => {
     const [loadingCourses, setLoadingCourses] = useState(false);
     const [loadingSubmissions, setLoadingSubmissions] = useState(false);
 
-    useEffect(() => {
-        if (isAuthenticated) {
-            setLoadingCourses(true);
-            classroomService.getCourses()
-                .then(setCourses)
-                .finally(() => setLoadingCourses(false));
+    const clearClassroomState = useCallback(() => {
+        setCourses([]);
+        setActiveCourseId(null);
+        setActiveCourseWorkId(null);
+        setCourseWorkMap({});
+        setStudentsMap({});
+        setSubmissionsMap({});
+    }, []);
+
+    const handleClassroomError = useCallback(async (error: unknown) => {
+        console.error(error);
+        if (error instanceof Error && error.message === 'Unauthorized') {
+            clearClassroomState();
+            await refreshUser();
         }
-    }, [isAuthenticated]);
+    }, [clearClassroomState, refreshUser]);
+
+    useEffect(() => {
+        if (!isAuthenticated) {
+            clearClassroomState();
+            return;
+        }
+
+        setLoadingCourses(true);
+        classroomService.getCourses()
+            .then(setCourses)
+            .catch((error) => void handleClassroomError(error))
+            .finally(() => setLoadingCourses(false));
+    }, [clearClassroomState, handleClassroomError, isAuthenticated]);
 
     const fetchCourseWork = useCallback(async (id: string) => {
         if (courseWorkMap[id]) return;
@@ -56,11 +77,11 @@ const ClassroomProvider = ({ children }: { children: ReactNode }) => {
             const work = await classroomService.getCourseWorks(id);
             setCourseWorkMap(prev => ({ ...prev, [id]: work }));
         } catch (error) {
-            console.error(error);
+            await handleClassroomError(error);
         } finally {
             setLoadingWork(false);
         }
-    }, [courseWorkMap]);
+    }, [courseWorkMap, handleClassroomError]);
 
     const fetchCourseWorks = fetchCourseWork;
 
@@ -82,7 +103,7 @@ const ClassroomProvider = ({ children }: { children: ReactNode }) => {
                 const subs = await classroomService.getSubmissions(activeCourseId, courseWorkId);
                 setSubmissionsMap(prev => ({ ...prev, [courseWorkId]: subs }));
             } catch (error) {
-                console.error(error);
+                await handleClassroomError(error);
             } finally {
                 setLoadingSubmissions(false);
             }
@@ -95,9 +116,9 @@ const ClassroomProvider = ({ children }: { children: ReactNode }) => {
             const students = await classroomService.getCourseStudents(courseId);
             setStudentsMap(prev => ({ ...prev, [courseId]: students }));
         } catch (error) {
-            console.error(error);
+            await handleClassroomError(error);
         }
-    }, [studentsMap]);
+    }, [handleClassroomError, studentsMap]);
 
     return (
         <ClassroomContext.Provider value={{

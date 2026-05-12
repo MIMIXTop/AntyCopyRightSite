@@ -1,5 +1,3 @@
-import { TokenStorage } from './TokenStore.ts';
-
 export class BaseApiService {
     protected baseUrl: string;
 
@@ -8,27 +6,28 @@ export class BaseApiService {
     }
 
     protected async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-        const token = TokenStorage.getToken();
-
         const headers = new Headers(options.headers);
-        if (token) {
-            headers.set('Authorization', `Bearer ${token}`);
+        if (options.body && !headers.has('Content-Type') && !(options.body instanceof FormData)) {
+            headers.set('Content-Type', 'application/json');
         }
-        headers.set('Content-Type', 'application/json');
 
         const response = await fetch(`${this.baseUrl}${endpoint}`, {
             ...options,
-            headers
+            headers,
+            credentials: 'include',
         });
 
         if (response.status === 401) {
-            TokenStorage.removeToken();
             throw new Error('Unauthorized');
         }
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.error?.message || 'API Error');
+        }
+
+        if (response.status === 204) {
+            return undefined as T;
         }
 
         return response.json() as Promise<T>;

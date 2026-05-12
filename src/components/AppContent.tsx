@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, type Key } from 'react';
 import { Layout, Typography, Avatar, Input, Card, Table, Tag, Button, message, Tabs, Checkbox, Space, Spin, theme } from 'antd';
 import { FileTextOutlined, SearchOutlined, ArrowLeftOutlined, UserOutlined, PaperClipOutlined, ScanOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
 import { useClassroom } from "./ClassroomContext.tsx";
 import { useAuth } from "./AuthContext.tsx";
+import { env } from "../config/env.ts";
 
 import { FilePreviewOverlay } from './FilePreviewOverlay';
 import { SimilarityMatrix } from './SimilarityMatrix';
 import { DashboardView } from './DashboardView';
-import type { DriveFile, FileMeta, Submission, Attachment } from '../types/auth';
+import type { AnalyzeResponse, DriveFile, FileMeta, Submission, Attachment } from '../types/auth';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -16,32 +17,68 @@ interface PayloadFile {
     file: {
         file_url: string;
         file_id: string;
+        file_type: string;
     };
 }
+
+const SAVED_ANALYSIS_KEY = 'saved_similarity_analysis_v2';
+const SAVED_META_KEY = 'saved_similarity_meta_v1';
+const SUPPORTED_FILE_EXTENSIONS = ['.docx', '.pdf'];
+
+const isSupportedAttachment = (attachment: Attachment) => {
+    const title = attachment.driveFile?.title.toLowerCase() ?? '';
+    return SUPPORTED_FILE_EXTENSIONS.some(extension => title.endsWith(extension));
+};
 
 export const AppContent: React.FC = () => {
     const { token: antdToken } = theme.useToken();
     const { courses, activeCourseId, activeCourseWorkId, courseWorkMap, submissionsMap, loadingWork, loadingCourses, loadingSubmissions, selectCourse, selectCourseWork, studentsMap } = useClassroom();
-    const { token } = useAuth();
+    const { isAuthenticated, refreshUser } = useAuth();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [previewFile, setPreviewFile] = useState<DriveFile | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [similarityData, setSimilarityData] = useState<any | null>(null);
+    const [similarityData, setSimilarityData] = useState<AnalyzeResponse | null>(null);
     const [fileMetaMap, setFileMetaMap] = useState<Record<string, FileMeta>>({});
     const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
 
     useEffect(() => {
+        try {
+            const savedAnalysis = localStorage.getItem(SAVED_ANALYSIS_KEY);
+            const savedMeta = localStorage.getItem(SAVED_META_KEY);
+            if (savedAnalysis) {
+                setSimilarityData(JSON.parse(savedAnalysis) as AnalyzeResponse);
+            }
+            if (savedMeta) {
+                setFileMetaMap(JSON.parse(savedMeta) as Record<string, FileMeta>);
+            }
+        } catch {
+            localStorage.removeItem(SAVED_ANALYSIS_KEY);
+            localStorage.removeItem(SAVED_META_KEY);
+        }
+    }, []);
+
+    useEffect(() => {
         setSelectedFileIds([]);
-        setSimilarityData(null);
         setSearchQuery('');
     }, [activeCourseId, activeCourseWorkId]);
+
+    const saveAnalysis = (data: AnalyzeResponse, meta: Record<string, FileMeta>) => {
+        setSimilarityData(data);
+        setFileMetaMap(meta);
+        localStorage.setItem(SAVED_ANALYSIS_KEY, JSON.stringify(data));
+        localStorage.setItem(SAVED_META_KEY, JSON.stringify(meta));
+    };
 
     const getEmbedUrl = (link: string) => link.includes('/view') ? link.replace(/\/view.*/, '/preview') : link;
 
     // --- ВОССТАНОВЛЕННАЯ ФУНКЦИЯ АНАЛИЗА ---
     const handleAnalyze = async () => {
         if (!activeCourseWorkId || selectedFileIds.length < 2) return;
+        if (!isAuthenticated) {
+            message.warning('Войдите через Google, чтобы запустить анализ');
+            return;
+        }
 
         setIsAnalyzing(true);
         const payloadFiles: PayloadFile[] = [];
@@ -56,7 +93,8 @@ export const AppContent: React.FC = () => {
                     payloadFiles.push({
                         file: {
                             file_url: att.driveFile.alternateLink.split('/view')[0],
-                            file_id: att.driveFile.id
+                            file_id: att.driveFile.id,
+                            file_type: att.driveFile.title.slice(att.driveFile.title.lastIndexOf('.') + 1),
                         }
                     });
                     meta[att.driveFile.id] = {
@@ -67,23 +105,32 @@ export const AppContent: React.FC = () => {
             });
         });
 
-        setFileMetaMap(meta);
         try {
-            const res = await fetch('https://127.0.0.1:8080/api/analyze', {
+            const res = await fetch(`${env.apiBaseUrl}/api/analyze`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ filesList: payloadFiles })
             });
 
+            if (res.status === 401) {
+                await refreshUser();
+                message.error('Сессия истекла. Войдите заново.');
+                return;
+            }
+
             if (!res.ok) throw new Error();
 
-            const data = await res.json();
-            setSimilarityData(data);
-            message.success('Анализ успешно завершен');
-        } catch (e) {
+            const data: AnalyzeResponse = await res.json();
+            saveAnalysis(data, meta);
+            if (data.skipped_sections?.length) {
+                message.warning(`Анализ завершен: пропущено разделов ${data.skipped_sections.length}`);
+            } else {
+                message.success('Анализ успешно завершен');
+            }
+        } catch {
             message.error('Ошибка при выполнении анализа');
         } finally {
             setIsAnalyzing(false);
@@ -128,7 +175,7 @@ export const AppContent: React.FC = () => {
 
         const expandedRowRender = (record: Submission) => (
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', padding: '16px 24px', background: 'rgba(0,0,0,0.02)', borderRadius: 12 }}>
-                {record.assignmentSubmission?.attachments?.filter((a) => a.driveFile?.title.toLowerCase().endsWith('.docx')).map((att) => {
+                {record.assignmentSubmission?.attachments?.filter(isSupportedAttachment).map((att) => {
                     const isSelected = selectedFileIds.includes(att.driveFile!.id);
                     return (
                         <div
@@ -181,6 +228,12 @@ export const AppContent: React.FC = () => {
                         </Button>
                     </div>
 
+                    {similarityData && (
+                        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+                            Последний результат сохраняется локально и восстанавливается после перезагрузки.
+                        </Text>
+                    )}
+
                     <Tabs
                         defaultActiveKey="1"
                         items={[
@@ -189,15 +242,15 @@ export const AppContent: React.FC = () => {
                                         rowSelection={{
                                             type: 'checkbox',
                                             selectedRowKeys: submissions.filter(sub => {
-                                                const docx = sub.assignmentSubmission?.attachments?.filter(a => a.driveFile?.title.toLowerCase().endsWith('.docx')) || [];
-                                                return docx.length > 0 && docx.every(f => selectedFileIds.includes(f.driveFile!.id));
+                                                const supportedFiles = sub.assignmentSubmission?.attachments?.filter(isSupportedAttachment) || [];
+                                                return supportedFiles.length > 0 && supportedFiles.every(f => selectedFileIds.includes(f.driveFile!.id));
                                             }).map(s => s.id),
-                                            onChange: (keys: any) => {
+                                            onChange: (keys: Key[]) => {
                                                 let newIds = [...selectedFileIds];
                                                 submissions.forEach(sub => {
-                                                    const docx = sub.assignmentSubmission?.attachments?.filter(a => a.driveFile?.title.toLowerCase().endsWith('.docx')).map(a => a.driveFile!.id) || [];
-                                                    if (keys.includes(sub.id)) docx.forEach(id => { if (!newIds.includes(id)) newIds.push(id); });
-                                                    else newIds = newIds.filter(id => !docx.includes(id));
+                                                    const supportedFileIds = sub.assignmentSubmission?.attachments?.filter(isSupportedAttachment).map(a => a.driveFile!.id) || [];
+                                                    if (keys.includes(sub.id)) supportedFileIds.forEach(id => { if (!newIds.includes(id)) newIds.push(id); });
+                                                    else newIds = newIds.filter(id => !supportedFileIds.includes(id));
                                                 });
                                                 setSelectedFileIds(newIds);
                                             }

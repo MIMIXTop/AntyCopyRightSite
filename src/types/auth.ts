@@ -1,8 +1,9 @@
 export interface GoogleUser {
+    id: string;
+    googleSub: string;
     name: string;
     picture: string;
     email: string;
-    sub: string;
 }
 
 export interface Course {
@@ -93,6 +94,87 @@ export interface SimilarityItem {
     similarity: Array<{ id: string; value: number }>;
 }
 
-export interface GoogleTokenResponse {
-    access_token: string;
+export interface AnalyzeSectionRef {
+    label: string;
+    document_id: string;
+    doc_index: number;
+    section_index: number;
+    title: string;
+    normalized_title: string;
+}
+
+export interface AnalyzeComparison {
+    distance: number;
+    similarity: number;
+    best_left_sentence: number;
+    best_right_sentence: number;
+    best_similarity: number;
+}
+
+export interface AnalyzePairSection {
+    left: AnalyzeSectionRef;
+    right: AnalyzeSectionRef;
+    comparison: AnalyzeComparison;
+}
+
+export interface AnalyzeDocumentInventoryItem {
+    doc_index: number;
+    document_id: string;
+    fragment_count: number;
+}
+
+export interface AnalyzeSectionInventoryItem {
+    title: string;
+    documents: number;
+    sentence_count: number;
+    source_titles: string[];
+}
+
+export interface AnalyzeSkippedSection {
+    title: string;
+    label: string;
+    document_id: string;
+}
+
+export interface AnalyzeSectionSummary {
+    title: string;
+    source_titles: string[];
+    fragment_count: number;
+    pair_count: number;
+    total_sentence_pairs: number;
+    similarity: number;
+    distance: number;
+    description: string;
+    best_pair?: AnalyzePairSection;
+    worst_pair?: AnalyzePairSection;
+}
+
+export interface AnalyzeDocumentPairSummary {
+    left_doc_index: number;
+    right_doc_index: number;
+    left_document_id: string;
+    right_document_id: string;
+    section_count: number;
+    total_sentence_pairs: number;
+    similarity: number;
+    distance: number;
+    best_section?: AnalyzePairSection;
+    worst_section?: AnalyzePairSection;
+    sections: AnalyzePairSection[];
+}
+
+export interface AnalyzeResponse {
+    documents: number;
+    source_documents: number;
+    fragments: number;
+    sections: number;
+    comparable_sections: number;
+    top_k_candidates: number;
+    document_limit: number;
+    worker_count: number;
+    document_inventory: AnalyzeDocumentInventoryItem[];
+    section_inventory: AnalyzeSectionInventoryItem[];
+    skipped_sections: AnalyzeSkippedSection[];
+    section_summaries: AnalyzeSectionSummary[];
+    document_pair_summaries: AnalyzeDocumentPairSummary[];
 }

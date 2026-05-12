@@ -1,85 +1,96 @@
 import { createContext, useContext, useState, type ReactNode, useEffect, useCallback } from 'react';
-import { type GoogleUser, type GoogleTokenResponse } from '../types/auth';
-import { TokenStorage } from "../services/TokenStore";
+import { type GoogleUser } from '../types/auth';
+import { env } from '../config/env';
 
 interface AuthContextType {
     user: GoogleUser | null;
-    token: string | null;
-    login: (tokenResponse: GoogleTokenResponse) => void;
-    logout: () => void;
+    logout: () => Promise<void>;
+    refreshUser: () => Promise<void>;
     isAuthenticated: boolean;
     isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+type BackendGoogleUser = Partial<GoogleUser> & {
+    sub?: string;
+    picture_url?: string;
+};
+
+type AuthMeResponse = { user?: BackendGoogleUser | null } | BackendGoogleUser;
+
+const hasUserProperty = (data: AuthMeResponse): data is { user?: BackendGoogleUser | null } => {
+    return Object.prototype.hasOwnProperty.call(data, 'user');
+};
+
+const normalizeUser = (user: BackendGoogleUser): GoogleUser => {
+    const googleSub = user.googleSub ?? user.sub ?? '';
+
+    return {
+        id: user.id ?? googleSub ?? user.email ?? '',
+        googleSub,
+        email: user.email ?? '',
+        name: user.name ?? '',
+        picture: user.picture ?? user.picture_url ?? '',
+    };
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<GoogleUser | null>(null);
-    const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
-    const logout = useCallback(() => {
-        setUser(null);
-        setToken(null);
-        TokenStorage.removeToken();
+    const refreshUser = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(`${env.apiBaseUrl}/api/auth/me`, {
+                method: 'GET',
+                credentials: 'include',
+            });
+
+            if (response.status === 401) {
+                setUser(null);
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error('Failed to load current user');
+            }
+
+            const data = await response.json() as AuthMeResponse;
+            const nextUser = hasUserProperty(data) ? data.user : data;
+            if (!nextUser) {
+                setUser(null);
+                return;
+            }
+
+            setUser(normalizeUser(nextUser));
+        } catch (error) {
+            console.error('Ошибка при получении текущей сессии:', error);
+            setUser(null);
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
 
-    const fetchUserInfo = useCallback(async (accessToken: string): Promise<GoogleUser | null> => {
+    const logout = useCallback(async () => {
         try {
-            const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                headers: { Authorization: `Bearer ${accessToken}` }
+            await fetch(`${env.apiBaseUrl}/api/auth/logout`, {
+                method: 'POST',
+                credentials: 'include',
             });
-            if (response.ok) {
-                const data = await response.json();
-                return {
-                    name: data.name,
-                    picture: data.picture,
-                    email: data.email,
-                    sub: data.sub
-                };
-            }
         } catch (error) {
-            console.error("Ошибка при получении профиля Google:", error);
+            console.error('Ошибка при выходе из аккаунта:', error);
+        } finally {
+            setUser(null);
         }
-        return null;
     }, []);
 
     useEffect(() => {
-        const initAuth = async () => {
-            const savedToken = TokenStorage.getToken();
-            if (savedToken) {
-                setToken(savedToken);
-                const userData = await fetchUserInfo(savedToken);
-                if (userData) {
-                    setUser(userData);
-                } else {
-                    logout();
-                }
-            }
-            setIsLoading(false);
-        };
-        initAuth();
-    }, [fetchUserInfo, logout]);
-
-    const login = async (tokenResponse: GoogleTokenResponse) => {
-        const accessToken = tokenResponse.access_token;
-
-        if (!accessToken) {
-            console.error("Access Token не найден в ответе");
-            return;
-        }
-
-        TokenStorage.setToken(accessToken);
-        setToken(accessToken);
-
-        const userData = await fetchUserInfo(accessToken);
-        if (userData) {
-            setUser(userData);
-        }
-    };
+        void refreshUser();
+    }, [refreshUser]);
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!user, isLoading }}>
+        <AuthContext.Provider value={{ user, logout, refreshUser, isAuthenticated: !!user, isLoading }}>
             {!isLoading && children}
         </AuthContext.Provider>
     );

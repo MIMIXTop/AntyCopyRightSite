@@ -1,9 +1,8 @@
 import React from "react";
 import {MainLayout} from "./components/MainLayout.tsx";
 import {AuthProvider} from "./components/AuthContext.tsx";
-import {GoogleOAuthProvider} from "@react-oauth/google";
 import ClassroomProvider from "./components/ClassroomContext.tsx";
-import {ConfigProvider, theme} from "antd";
+import {ConfigProvider} from "antd";
 
 const md3Theme = {
     token: {
@@ -14,7 +13,6 @@ const md3Theme = {
     },
     components: {
         Table: {
-            // Исправляет проблему черного прямоугольника при наведении
             colorRowHover: '#EADDFF',
             headerBg: 'transparent',
             colorFillAlter: '#F7F2FA', // Цвет чередующихся строк
@@ -32,19 +30,17 @@ const md3Theme = {
 
 const App: React.FC = () => {
     return (
-        <GoogleOAuthProvider clientId={"874149477634-36fv6jdap0t0su0b9heuf8f7ko86qg2v.apps.googleusercontent.com"}>
-            <AuthProvider>
-                <ClassroomProvider>
-                    <div className="App">
-                        <ConfigProvider
-                            theme={md3Theme}
-                        >
-                            <MainLayout/>
-                        </ConfigProvider>
-                    </div>
-                </ClassroomProvider>
-            </AuthProvider>
-        </GoogleOAuthProvider>
+        <AuthProvider>
+            <ClassroomProvider>
+                <div className="App">
+                    <ConfigProvider
+                        theme={md3Theme}
+                    >
+                        <MainLayout/>
+                    </ConfigProvider>
+                </div>
+            </ClassroomProvider>
+        </AuthProvider>
     );
 };
 
