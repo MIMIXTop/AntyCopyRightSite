@@ -24,7 +24,7 @@ export const FilePreviewOverlay: React.FC<Props> = ({ file, onClose }) => {
                     <Button type="text" icon={<CloseOutlined />} onClick={onClose} style={{ color: 'white' }} />
                 </Space>
             </div>
-            <iframe src={file.thumbnailUrl} style={{ flex: 1, border: 'none' }} allowFullScreen title="Preview" />
+            <iframe src={file.thumbnailUrl} style={{ flex: 1, border: 'none', background: 'transparent', backgroundColor: "transparent" }} allowFullScreen title="Preview" />
         </div>
     );
 };
