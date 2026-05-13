@@ -24,7 +24,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
         {
             key: 'courses_group',
             label: 'Мои курсы',
-            type: 'group', 
+            type: 'group', // добавим тип группа для красоты
             children: loadingCourses
                 ? [{ key: 'loading', label: <Spin size="small" /> }]
                 : courses && courses.length > 0

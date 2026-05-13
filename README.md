@@ -42,25 +42,15 @@ bun install
 # Запуск dev-сервера
 bun run dev
 
-# Запуск dev-сервера по HTTPS
-bun run ssl:generate
-bun run dev:https
-
 # Сборка для продакшена
 bun run build
 
 # Предпросмотр продакшена
 bun run preview
 
-# Предпросмотр продакшена по HTTPS
-bun run preview:https
-
 # Линтинг
 bun run lint
 ```
-
-HTTPS в dev-режиме использует локальные сертификаты `certs/localhost-key.pem` и `certs/localhost.pem`.
-Можно указать свои файлы через переменные `VITE_DEV_SSL_KEY` и `VITE_DEV_SSL_CERT`.
 
 ## Особенности
 
