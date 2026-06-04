@@ -1,6 +1,7 @@
 import React from 'react';
-import { Button, Descriptions, Empty, Modal, Space, Statistic, Table, Tag, Typography, type TableProps } from 'antd';
-import type { AnalyzeDocumentPairSummary, AnalyzePairSection, AnalyzeResponse, FileMeta } from '../types/auth';
+import { Button, Card, Descriptions, Empty, Modal, Space, Spin, Statistic, Table, Tag, Typography, message, type TableProps } from 'antd';
+import type { AnalyzeDocumentPairSummary, AnalyzeFragmentsResponse, AnalyzePairSection, AnalyzeResponse, FileMeta } from '../types/auth';
+import { analysisService } from '../services/AnalysisService.ts';
 
 const { Text } = Typography;
 
@@ -37,6 +38,49 @@ const sectionLabel = (section: AnalyzePairSection) =>
 
 export const SimilarityMatrix: React.FC<Props> = ({ data, metaMap }) => {
     const [selectedPair, setSelectedPair] = React.useState<AnalyzeDocumentPairSummary | null>(null);
+    const [fragmentReport, setFragmentReport] = React.useState<AnalyzeFragmentsResponse | null>(null);
+    const [selectedFragmentName, setSelectedFragmentName] = React.useState<string | null>(null);
+    const [loadingFragmentReport, setLoadingFragmentReport] = React.useState(false);
+    const [isFragmentReportOpen, setIsFragmentReportOpen] = React.useState(false);
+
+    const openPairDetails = (pair: AnalyzeDocumentPairSummary) => {
+        setSelectedPair(pair);
+        setFragmentReport(null);
+        setSelectedFragmentName(null);
+    };
+
+    const closePairDetails = () => {
+        setSelectedPair(null);
+        setFragmentReport(null);
+        setSelectedFragmentName(null);
+        setIsFragmentReportOpen(false);
+    };
+
+    const handleOpenFragmentReport = async (section: AnalyzePairSection) => {
+        if (!selectedPair) return;
+
+        const fragmentName = section.left.normalized_title || section.left.title;
+        setLoadingFragmentReport(true);
+        setSelectedFragmentName(sectionLabel(section));
+        setFragmentReport(null);
+        setIsFragmentReportOpen(true);
+
+        try {
+            const report = await analysisService.analyzeFragments({
+                first_doc_id: selectedPair.left_document_id,
+                second_doc_id: selectedPair.right_document_id,
+                fragment_name: fragmentName,
+            });
+
+            setFragmentReport(report);
+        } catch (error) {
+            console.error('Failed to fetch fragment report:', error);
+            message.error('Не удалось загрузить подсветку фрагмента');
+            setFragmentReport(null);
+        } finally {
+            setLoadingFragmentReport(false);
+        }
+    };
 
     if (!data) return <Empty description="Выберите файлы и запустите анализ" />;
     if (!data.document_inventory.length) return <Empty description="В ответе анализа нет документов" />;
@@ -81,7 +125,7 @@ export const SimilarityMatrix: React.FC<Props> = ({ data, metaMap }) => {
                         type="link"
                         size="small"
                         style={{ padding: 0, height: 'auto' }}
-                        onClick={() => setSelectedPair(pair)}
+                        onClick={() => openPairDetails(pair)}
                     >
                         <Tag color={levelColor(similarity)}>{formatPercent(similarity)}</Tag>
                     </Button>
@@ -162,7 +206,7 @@ export const SimilarityMatrix: React.FC<Props> = ({ data, metaMap }) => {
                                                     type="link"
                                                     size="small"
                                                     style={{ padding: 0, height: 'auto' }}
-                                                    onClick={() => setSelectedPair(pair)}
+                                                    onClick={() => openPairDetails(pair)}
                                                 >
                                                     <Tag color={levelColor(pair.similarity)}>{formatPercent(pair.similarity)}</Tag>
                                                 </Button>
@@ -201,9 +245,9 @@ export const SimilarityMatrix: React.FC<Props> = ({ data, metaMap }) => {
             <Modal
                 open={Boolean(selectedPair)}
                 title={selectedPair ? `${fileLabel(selectedPair.left_document_id, metaMap)} ↔ ${fileLabel(selectedPair.right_document_id, metaMap)}` : 'Детали схожести'}
-                onCancel={() => setSelectedPair(null)}
+                onCancel={closePairDetails}
                 footer={null}
-                width={980}
+                width={1180}
             >
                 {selectedPair && (
                     <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -290,12 +334,93 @@ export const SimilarityMatrix: React.FC<Props> = ({ data, metaMap }) => {
                                             {' '}({formatPercent(section.comparison.best_similarity)})
                                         </Text>
                                     )
+                                },
+                                {
+                                    title: 'Подсветка',
+                                    key: 'fragmentReport',
+                                    width: 130,
+                                    render: (_, section) => (
+                                        <Button
+                                            size="small"
+                                            loading={loadingFragmentReport && selectedFragmentName === sectionLabel(section)}
+                                            onClick={() => handleOpenFragmentReport(section)}
+                                        >
+                                            Показать
+                                        </Button>
+                                    )
                                 }
                             ]}
                             locale={{ emptyText: 'Для этой пары нет данных по разделам' }}
                         />
                     </Space>
                 )}
+            </Modal>
+
+            <Modal
+                open={isFragmentReportOpen}
+                onCancel={() => setIsFragmentReportOpen(false)}
+                footer={null}
+                width="96vw"
+                style={{ top: 18 }}
+                styles={{
+                    body: { padding: 0 },
+                }}
+            >
+                <div style={{ background: '#f0f2f5', padding: 20, minHeight: 620 }}>
+                    <h2 style={{ margin: '0 0 18px', fontSize: 26, lineHeight: 1.2 }}>
+                        Дифференцированное выделение блоков плагиата
+                    </h2>
+                    {selectedFragmentName && (
+                        <Text type="secondary" style={{ display: 'block', marginBottom: 18 }}>
+                            Фрагмент: {selectedFragmentName}
+                        </Text>
+                    )}
+
+                    {loadingFragmentReport && !fragmentReport ? (
+                        <Card variant="borderless" style={{ minHeight: 240 }}>
+                            <Spin tip="Загрузка подсветки фрагмента..." />
+                        </Card>
+                    ) : fragmentReport && selectedPair ? (
+                        <div style={{ display: 'flex', gap: 20, alignItems: 'stretch' }}>
+                            <div
+                                style={{
+                                    flex: 1,
+                                    background: '#fff',
+                                    padding: 20,
+                                    borderRadius: 8,
+                                    lineHeight: 1.6,
+                                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                                    minHeight: 520,
+                                }}
+                            >
+                                <h3 style={{ marginTop: 0, marginBottom: 24, fontSize: 20 }}>Документ 1</h3>
+                                <Text type="secondary" style={{ display: 'block', marginBottom: 18 }}>
+                                    {fileLabel(selectedPair.left_document_id, metaMap)}
+                                </Text>
+                                <div dangerouslySetInnerHTML={{ __html: fragmentReport[0] }} />
+                            </div>
+                            <div
+                                style={{
+                                    flex: 1,
+                                    background: '#fff',
+                                    padding: 20,
+                                    borderRadius: 8,
+                                    lineHeight: 1.6,
+                                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                                    minHeight: 520,
+                                }}
+                            >
+                                <h3 style={{ marginTop: 0, marginBottom: 24, fontSize: 20 }}>Документ 2</h3>
+                                <Text type="secondary" style={{ display: 'block', marginBottom: 18 }}>
+                                    {fileLabel(selectedPair.right_document_id, metaMap)}
+                                </Text>
+                                <div dangerouslySetInnerHTML={{ __html: fragmentReport[1] }} />
+                            </div>
+                        </div>
+                    ) : (
+                        <Empty description="Подсветка фрагмента не загружена" />
+                    )}
+                </div>
             </Modal>
         </>
     );

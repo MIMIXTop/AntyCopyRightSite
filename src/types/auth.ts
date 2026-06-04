@@ -163,6 +163,14 @@ export interface AnalyzeDocumentPairSummary {
     sections: AnalyzePairSection[];
 }
 
+export interface AnalyzeFragmentsRequest {
+    first_doc_id: string;
+    second_doc_id: string;
+    fragment_name: string;
+}
+
+export type AnalyzeFragmentsResponse = [string, string];
+
 export interface AnalyzeResponse {
     documents: number;
     source_documents: number;

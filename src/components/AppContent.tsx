@@ -18,6 +18,7 @@ interface PayloadFile {
         file_url: string;
         file_id: string;
         file_type: string;
+        file_name: string;
     };
 }
 
@@ -95,6 +96,7 @@ export const AppContent: React.FC = () => {
                             file_url: att.driveFile.alternateLink.split('/view')[0],
                             file_id: att.driveFile.id,
                             file_type: att.driveFile.title.slice(att.driveFile.title.lastIndexOf('.') + 1),
+                            file_name: att.driveFile.title,
                         }
                     });
                     meta[att.driveFile.id] = {
